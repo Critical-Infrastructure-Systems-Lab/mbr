@@ -1,0 +1,32 @@
+Package: mbr
+Type: Package
+Title: Mass Balance Reconstruction
+Version: 0.1.0
+Author: Hung Nguyen
+Maintainer: Hung Nguyen <ntthung@gmail.com>
+Description: Mass balance reconstruction
+    See paper
+License: GPL (>= 2.0)
+Encoding: UTF-8
+LazyData: true
+Depends:
+    R (>= 3.5)
+Imports:
+    data.table,
+    dplR,
+    leaps,
+    ldsr,
+    MASS,
+    Matrix,
+    stats,
+    VSURF
+RoxygenNote: 7.1.0
+Roxygen:
+    list(markdown = TRUE)
+URL: https://github.com/ntthung/mbr
+BugReports: https://github.com/ntthung/mbr/issues
+Suggests: 
+    knitr,
+    rmarkdown,
+    testthat
+VignetteBuilder: knitr
