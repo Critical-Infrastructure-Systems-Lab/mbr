@@ -18,8 +18,7 @@ Imports:
     ldsr,
     MASS,
     Matrix,
-    stats,
-    VSURF
+    stats
 RoxygenNote: 7.1.0
 Roxygen:
     list(markdown = TRUE)
@@ -28,5 +27,6 @@ BugReports: https://github.com/ntthung/mbr/issues
 Suggests: 
     knitr,
     rmarkdown,
-    testthat
+    testthat,
+    VSURF
 VignetteBuilder: knitr
