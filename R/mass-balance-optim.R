@@ -3,13 +3,15 @@
 #' @param hat A vector of estimated flow in the transformed space.
 #' @param obs A vector of observed flow in the transformed space.
 #' @param lambda Penalty weight.
+#' @param mus A vector of means, one for each target.
+#' @param sigmas A vector of the standard deviations, one for each target.
 #' @param log.seasons A vector containing the indices of the seasons that are log-transformed.
 #' @param log.ann TRUE if the annual reconstruction is log-transformed.
 #' @param N The number of targets (number of seasons plus one for the annual reconstruction).
 #' @param sInd Indices of the seasons, i.e, 1...N-1
 #' @return Objective function value: least squares plus a penalty term.
 #' @export
-lsq_mb <- function(hat, obs, lambda, log.seasons, log.ann, N, sInd) {
+lsq_mb <- function(hat, obs, lambda, mus, sigmas, log.seasons, log.ann, N, sInd) {
 
   s1 <- sum((hat - obs)^2) # Regression part
 
@@ -17,15 +19,37 @@ lsq_mb <- function(hat, obs, lambda, log.seasons, log.ann, N, sInd) {
     s2 <- 0
   } else {
 
-    hatBack <- matrix(hat, ncol = N)
-    hatBack[, log.seasons] <- exp(hatBack[, log.seasons])
+    # colSums() is much faster than rowSums()
+    # and is even faster than Rcpp versions
+    # rowScale() is also faster than colScale becase
+    # we don't have to do the t(t())
+
+    # Convert to matrix
+    hatBack <- matrix(hat, nrow = N, byrow = TRUE)
+
+    # Take out the annual reconstruction
+    zHat <- hatBack[N, ]
+
+    # Unscale for the seasons only
+    if (!is.null(mus)) hatBack <- rowUnscale(hatBack[sInd, ], mus[sInd], sigmas[sInd])
+
+    # Take exponential where necessary
+    hatBack[log.seasons, ] <- exp(hatBack[log.seasons, ])
 
     if (any(is.infinite(hatBack))) {
       s2 <- 1e7 # GA needs finite f value
     } else {
-      # Take sum and transform if necessary
-      totalSeasonal <- if (log.ann) log(rowSums(hatBack[, sInd])) else rowSums(hatBacks[, sInd])
-      s2 <- sum((totalSeasonal - hatBack[, N])^2)
+      # Take sum
+      totalSeasonal <- colSums(hatBacks)
+
+      # Log-transform if necessary
+      if (log.ann) totalSeasonal <- log(totalSeasonal)
+
+      # Scale using the annual statistics
+      if (!is.null(mus)) totalSeasonal <- (totalSeasonal - mus[N]) / sigmas[N]
+
+      # Calculate penalty term in the z-score space
+      s2 <- sum((totalSeasonal - zHat)^2)
     }
   }
   s1 + lambda * s2
@@ -41,10 +65,10 @@ lsq_mb <- function(hat, obs, lambda, log.seasons, log.ann, N, sInd) {
 #' @inheritParams lsq_mb
 #' @return Objective function value
 #' @export
-obj_fun <- function(beta, X, Y, lambda, log.seasons, log.ann, N, sInd) {
+obj_fun <- function(beta, X, Y, lambda, mus, sigmas, log.seasons, log.ann, N, sInd) {
 
   hat <- X %*% beta
-  lsq_mb(hat, Y, lambda, log.seasons, log.ann, N, sInd)
+  lsq_mb(hat, Y, lambda, log.seasons, mus, sigmas, log.ann, N, sInd)
 }
 
 #' Fit parameters with mass balance criterion
@@ -52,7 +76,7 @@ obj_fun <- function(beta, X, Y, lambda, log.seasons, log.ann, N, sInd) {
 #' @inheritParams obj_fun
 #' @return A one-column matrix of beta value
 #' @export
-mb_fit <- function(X, Y, lambda, log.seasons, log.ann, N, sInd) {
+mb_fit <- function(X, Y, lambda, mus, sigmas, log.seasons, log.ann, N, sInd) {
 
   # Solve the free optimization and use the result as initial value L-BFGS-B search
   # This will speed up the search process
@@ -64,6 +88,7 @@ mb_fit <- function(X, Y, lambda, log.seasons, log.ann, N, sInd) {
   stats::optim(
     betaFree, obj_fun, method = 'L-BFGS-B',
     X = X, Y = Y, lambda = lambda,
+    mus = mus, sigmas = sigmas,
     log.seasons = log.seasons, log.ann = log.ann, N = N, sInd = sInd)$par
 }
 
@@ -82,14 +107,16 @@ prepend_ones <- function(x) cbind('Int' = rep(1, dim(x)[1]), x)
 #' @inheritParams lsq_mb
 #' @param season.names A character vector containing the names of the seasons
 #' @export
-back_trans <- function(hat, years, log.trans, num.targets, season.names) {
+back_trans <- function(hat, years, log.trans, mus, sigmas, N, season.names) {
 
-  hatBack <- matrix(hat, ncol = num.targets)
+  # Here we use the column form because it's easier to do c() and we don't have to worry about speed
+  hatBack <- matrix(hat, ncol = N)
+  hatBack <- colUnscale(hatBack, mus, sigmas)
   hatBack[, log.trans] <- exp(hatBack[, log.trans])
 
   data.table(
     Q = c(hatBack),
-    season = rep(season.names, each = length(hat) / num.targets),
+    season = rep(season.names, each = length(hat) / N),
     year = rep(years, num.targets))
 }
 
@@ -99,31 +126,60 @@ back_trans <- function(hat, years, log.trans, num.targets, season.names) {
 #' @param pc.list List of PC matrices. The first element is for the first season, second element for second season, and so on. The last element is for the annual reconstruction.
 #' @param start.year The first year of record
 #' @param lambda The penalty weight
+#' @param log.trans A vector containing indices of the targets to be log-transformed. If no transformation is needed, provide `NULL`.
+#' @section Details:
+#' If some targets are log transformed and some are not, they will have different scales, which affects the objective function. In this case the observations will be rescaled.
 #' @export
-mb_reconstruction <- function(instQ, pc.list, start.year, lambda = 1, log.trans, num.targets) {
+mb_reconstruction <- function(instQ, pc.list, start.year, lambda = 1, log.trans = NULL) {
 
   # Setup
   years     <- start.year:max(instQ$year)
   instInd   <- which(years %in% instQ$year)
   XList     <- lapply(pc.list, prepend_ones)
   XListInst <- lapply(XList, function(x) x[instInd, , drop = FALSE])
-  X         <- as.matrix(Matrix::bdiag(XList))
-  XTrain    <- as.matrix(Matrix::bdiag(XListInst))
-  instQList <- split(instQ, by = 'season')
+  X         <- as.matrix(Matrix::.bdiag(XList))
+  XTrain    <- as.matrix(Matrix::.bdiag(XListInst))
+  N         <- length(levels(instQ$season))
+  sInd      <- 1:(N-1)
+  Y         <- instQ$Qa
 
-  Y <- matrix(instQ$Qa, ncol = num.targets)
-  Y[, log.trans] <- log(Y[, log.trans])
-  Y <- c(Y)
+  # Calibration -------------------------------------
 
-  # Calibration
-  log.seasons <- which(log.trans < num.targets)
-  log.ann <- max(log.trans) == num.targets
-  sInd <- seq_len(num.targets - 1)
-  beta <- mb_fit(XTrain, Y, lambda, log.seasons, log.ann, num.targets, sInd)
-  # Prediction
-  hat <- X %*% beta # Convert to vector
-  # Tidy up
-  DT <- back_trans(hat, years, log.trans, num.targets, levels(instQ$season))
+  if (is.null(log.trans)) {
+
+    # Analytical solution when there is no transformation
+
+    A <- cbind(do.call(cbind, XListInst[sInd]), -XListInst[[N]])
+    XTX <- crossprod(XTrain)
+    XTY <- crossprod(XTrain, Y)
+    ATA <- crossprod(A)
+    beta <- solve(XTX + lambda * ATA, XTY)
+
+  } else {
+
+    # Numerical solution
+    # Use column form so that we can use c() later
+    Y <- matrix(Y, ncol = num.targets)
+    Y[, log.trans] <- log(Y[, log.trans])
+    if (length(log.trans) < num.targets) {
+      Y   <- colScale(Y)
+      cm  <- attributes(Y)[['scaled:center']]
+      csd <- attributes(Y)[['scaled:scale']]
+    } else {
+      cm <- NULL
+      csd <- NULL
+    }
+    Y <- c(Y)
+
+    log.seasons <- which(log.trans < N)
+    log.ann <- max(log.trans) == N
+    beta <- mb_fit(XTrain, Y, lambda, cm, csd, log.seasons, log.ann, N, sInd)
+  }
+
+  # Prediction ------------------------------------------
+
+  hat <- X %*% beta
+  DT <- back_trans(hat, years, log.trans, cm, csd, N, levels(instQ$season))
   DT[, lambda := lambda][]
 }
 
@@ -137,46 +193,93 @@ mb_reconstruction <- function(instQ, pc.list, start.year, lambda = 1, log.trans,
 #' @export
 cv_mb <- function(instQ, pc.list, cv.folds, start.year,
                   lambda = 1,
-                  log.trans, num.targets,
+                  log.trans = NULL,
                   return.type = c('mb', 'metrics', 'Q')) {
 
   # Setup
   years     <- start.year:max(instQ$year)
   instInd   <- which(years %in% instQ$year)
+  yearsInst <- years[instInd]
   XListInst <- lapply(pc.list, function(x) prepend_ones(x[instInd, , drop = FALSE]))
-  XTrain    <- as.matrix(Matrix::bdiag(XListInst))
-  instQList <- split(instQ, by = 'season')
+  XTrain    <- as.matrix(Matrix::.bdiag(XListInst))
+  Y         <- instQ$Qa
+  N         <- length(levels(instQ$season))
+  sInd      <- 1:(N-1)
+  hasLog    <- !is.null(log.trans)
+  hasScale  <- hasLog && length(log.trans) < N
+  indMat    <- matrix(seq_along(Y), ncol = N)
 
-  Y <- matrix(instQ$Qa, ncol = num.targets)
-  Y[, log.trans] <- log(Y[, log.trans])
-  Y <- c(Y)
-  L <- length(Y)         # Total number of data points
+  if (hasLog) {
 
-  indMat <- matrix(seq_along(Y), ncol = num.targets)
+    log.seasons <- which(log.trans < N)
+    log.ann     <- max(log.trans) == N
 
-  log.seasons <- which(log.trans < num.targets)
-  log.ann <- max(log.trans) == num.targets
-  sInd <- seq_len(num.targets - 1)
+    YMat <- matrix(Y, ncol = N)
+    YMat[, log.trans] <- log(YMat[, log.trans])
 
-  # Cross-validation routine
+    if (hasScale) {
+      Y   <- c(colScale(YMat))
+      cm  <- attributes(Y)[['scaled:center']]
+      csd <- attributes(Y)[['scaled:scale']]
+    } else {
+      Y <- c(YMat)
+      cm <- NULL
+      csd <- NULL
+    }
+
+  } else {
+
+    A <- cbind(do.call(cbind, XListInst[sInd]), -XListInst[[N]])
+
+  }
+
+  # Cross-validation routine ------------------------------
+
   one_cv <- function(z) {
+
     calInd <- c(indMat[-z, ])
     valInd <- c(indMat[ z, ])
 
     # Calibration
 
-    beta <- mb_fit(XTrain[calInd, ], Y[calInd], lambda, log.seasons, log.ann, num.targets, sInd)
+    if (hasLog) {
+
+      # Rescaling is here so that the training process
+      # only sees the mean and sd of the training set
+      # not the entire series
+
+      if (hasScale) {
+        Y2  <- c(colScale(YMat[-z, ]))
+        cm  <- attributes(Y2)[['scaled:center']]
+        csd <- attributes(Y2)[['scaled:scale']]
+      } else {
+        Y2 <- Y[calInd]
+        cm <- NULL
+        csd <- NULL
+      }
+
+      beta <- mb_fit(XTrain[calInd, ], Y2, lambda, cm, csd, log.seasons, log.ann, N, sInd)
+
+    } else {
+
+      XTX <- crossprod(XTrain[calInd, ])
+      XTY <- crossprod(XTrain[calInd, ], Y[calInd])
+      ATA <- crossprod(A[-z, ])
+      beta <- solve(XTX + lambda * ATA, XTY)
+    }
 
     # Validation
+
     hat <- XTrain %*% beta # All instrumental period prediction
-    fval <- lsq_mb(hat[valInd], Y[valInd], lambda, log.seasons, log.ann, num.targets, sInd)
+
+    fval <- lsq_mb(hat[valInd], Y[valInd], lambda, cm, csd, log.seasons, log.ann, N, sInd)
+
     if (return.type == 'mb') {
       ans <- fval
     } else {
       Qcv <- merge(
-        back_trans(hat, years[instInd], back.funs, num.targets, levels(instQ$season)),
+        back_trans(hat, yearsInstInd, log.trans, cm, csd, N, levels(instQ$season)),
         instQ, by = c('year', 'season'))
-      setnames(Qcv, 'V1', 'Q')
       if (return.type == 'Q') {
         ans <- Qcv
       } else {
@@ -187,6 +290,8 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
     }
     ans
   }
+
+  # Run cv ---------------------------------------------------
 
   if (return.type == 'mb') { # A vector of fval
     unlist(lapply(cv.folds, one_cv), use.names = FALSE)
@@ -231,7 +336,7 @@ cv_site_selection <- function(choice, pool, n.site.min = 5,
       PC[, sv, drop = FALSE]
     })
 
-    cvFval <- cv_mb(instQ, pcList, cv.folds, start.year, lambda, log.trans, num.targets, return.type = 'mb')
+    cvFval <- cv_mb(instQ, pcList, cv.folds, start.year, lambda, log.trans, return.type = 'mb')
 
     if (use.robust.mean) -dplR::mean(cvFval) else -mean(cvFval)
   } else -1e7
