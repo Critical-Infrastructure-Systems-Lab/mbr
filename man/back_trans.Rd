@@ -4,7 +4,7 @@
 \alias{back_trans}
 \title{Back-transformation}
 \usage{
-back_trans(hat, years, log.trans, mus, sigmas, N, season.names)
+back_trans(hat, years, mus, sigmas, log.trans, N, season.names)
 }
 \arguments{
 \item{hat}{A vector of estimated flow in the transformed space.}
