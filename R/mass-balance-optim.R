@@ -32,7 +32,8 @@ lsq_mb <- function(hat, obs, lambda, mus, sigmas, log.seasons, log.ann, N, sInd)
       s2 <- 1e12 # GA needs finite f value
     } else {
       # Take sum
-      totalSeasonal <- rowsums(hatBack[, sInd])
+      # totalSeasonal <- rowsums(hatBack[, sInd])
+      totalSeasonal <- rowSums(hatBack[, sInd])
 
       # Log-transform if necessary
       if (log.ann) totalSeasonal <- log(totalSeasonal)
@@ -222,6 +223,8 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
     }
 
   } else {
+
+
 
     A <- cbind(do.call(cbind, XListInst[sInd]), -XListInst[[N]])
 
