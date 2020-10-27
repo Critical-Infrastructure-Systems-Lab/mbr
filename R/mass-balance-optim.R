@@ -104,13 +104,13 @@ back_trans <- function(hat, years, mus, sigmas, log.trans, N, season.names) {
 
   # Here we use the column form because it's easier to do c() and we don't have to worry about speed
   hatBack <- matrix(hat, ncol = N)
-  hatBack <- colUnscale(hatBack, mus, sigmas)
+  if (!is.null(mus)) hatBack <- colUnscale(hatBack, mus, sigmas)
   hatBack[, log.trans] <- exp(hatBack[, log.trans])
 
   data.table(
     Q = c(hatBack),
     season = rep(season.names, each = length(hat) / N),
-    year = rep(years, num.targets))
+    year = rep(years, N))
 }
 
 #' Mass-balance-adjusted reconstruction
