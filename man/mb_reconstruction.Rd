@@ -4,7 +4,14 @@
 \alias{mb_reconstruction}
 \title{Mass-balance-adjusted reconstruction}
 \usage{
-mb_reconstruction(instQ, pc.list, start.year, lambda = 1, log.trans = NULL)
+mb_reconstruction(
+  instQ,
+  pc.list,
+  start.year,
+  lambda = 1,
+  log.trans = NULL,
+  force.standardize = FALSE
+)
 }
 \arguments{
 \item{instQ}{Instrumental data, in the same order as pc.list. The "season" column must be a factor.}
@@ -16,12 +23,14 @@ mb_reconstruction(instQ, pc.list, start.year, lambda = 1, log.trans = NULL)
 \item{lambda}{The penalty weight}
 
 \item{log.trans}{A vector containing indices of the targets to be log-transformed. If no transformation is needed, provide \code{NULL}.}
+
+\item{force.standardize}{If TRUE, all observations are standardized. See Details.}
 }
 \description{
 Mass-balance-adjusted reconstruction
 }
 \section{Details}{
 
-If some targets are log transformed and some are not, they will have different scales, which affects the objective function. In this case the observations will be rescaled.
+If some targets are log transformed and some are not, they will have different scales, which affects the objective function. In this case the observations will be standardized so that they are in the same range. Otherwise, standardization are skipped for speed. However, in some cases you may want to standardize any ways, for example when flows in some months are much larger than in other months. In this case, set \code{force.standardize = TRUE}.
 }
 

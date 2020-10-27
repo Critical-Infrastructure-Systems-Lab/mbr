@@ -6,8 +6,9 @@
 \alias{mbr-package}
 \title{mbr: Mass Balance Reconstruction}
 \description{
-Mass balance reconstruction
-    See paper
+Mass-balance-adjusted Reconstruction
+    Streamflow reconstruction at sub-annual resolution (e.g., seasonal or monthly), with a penalty term
+    to minimize the differences between the total sub-annual flows and the annual flow.
 }
 \seealso{
 Useful links:

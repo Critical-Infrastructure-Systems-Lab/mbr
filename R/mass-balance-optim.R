@@ -120,53 +120,77 @@ back_trans <- function(hat, years, mus, sigmas, log.trans, N, season.names) {
 #' @param start.year The first year of record
 #' @param lambda The penalty weight
 #' @param log.trans A vector containing indices of the targets to be log-transformed. If no transformation is needed, provide `NULL`.
+#' @param force.standardize If TRUE, all observations are standardized. See Details.
 #' @section Details:
-#' If some targets are log transformed and some are not, they will have different scales, which affects the objective function. In this case the observations will be rescaled.
+#' If some targets are log transformed and some are not, they will have different scales, which affects the objective function. In this case the observations will be standardized so that they are in the same range. Otherwise, standardization are skipped for speed. However, in some cases you may want to standardize any ways, for example when flows in some months are much larger than in other months. In this case, set `force.standardize = TRUE`.
 #' @export
-mb_reconstruction <- function(instQ, pc.list, start.year, lambda = 1, log.trans = NULL) {
+mb_reconstruction <- function(instQ, pc.list, start.year, lambda = 1,
+                              log.trans = NULL, force.standardize = FALSE) {
 
   # Setup
   years     <- start.year:max(instQ$year)
   instInd   <- which(years %in% instQ$year)
-  XList     <- lapply(pc.list, prepend_ones)
-  XListInst <- lapply(XList, function(x) x[instInd, , drop = FALSE])
-  X         <- as.matrix(.bdiag(XList))
-  XTrain    <- as.matrix(.bdiag(XListInst))
   seasons   <- levels(instQ$season)
   N         <- length(seasons)
   sInd      <- 1:(N-1)
   Y         <- instQ$Qa
 
+  XList     <- lapply(pc.list, prepend_ones)
+  XListInst <- lapply(XList, function(x) x[instInd, , drop = FALSE])
+  X         <- as.matrix(.bdiag(XList))
+  XTrain    <- as.matrix(.bdiag(XListInst))
+
+  # NOTES:
+  # Working with matrices are much faster than with data.table
+  # Important to keep drop = FALSE; otherwise, when there is only one PC, a vector is returned.
+  # Use column form so that we can use c() later
+
   # Calibration -------------------------------------
 
   if (is.null(log.trans)) {
 
-    # Analytical solution when there is no transformation
+    if (force.standardize) {
 
-    A <- cbind(do.call(cbind, XListInst[sInd]), -XListInst[[N]])
-    XTX <- crossprod(XTrain)
-    XTY <- crossprod(XTrain, Y)
-    ATA <- crossprod(A)
+      # Scale the observation
+      Y   <- matrix(Y, ncol = N)
+      Y   <- colScale(Y)
+      cm  <- attributes(Y)[['scaled:center']] # column mean
+      csd <- attributes(Y)[['scaled:scale']]  # column sd
+      Y   <- c(Y)
+
+      # Multiply X by sigma_s / sigma_q before making A
+      ratio   <- csd / csd[N]
+      Xscaled <- lapply(sInd, function(k) XListInst[[k]] * ratio[k])
+      A       <- cbind(do.call(cbind, Xscaled), -XListInst[[N]])
+    } else {
+      cm  <- NULL
+      csd <- NULL
+      A   <- cbind(do.call(cbind, XListInst[sInd]), -XListInst[[N]])
+    }
+
+    # Analytical solution when there is no transformation
+    XTX  <- crossprod(XTrain)
+    XTY  <- crossprod(XTrain, Y)
+    ATA  <- crossprod(A)
     beta <- solve(XTX + lambda * ATA, XTY)
 
-  } else {
+  } else {  # Numerical solution
 
-    # Numerical solution
-    # Use column form so that we can use c() later
-    Y <- matrix(Y, ncol = num.targets)
+    Y <- matrix(Y, ncol = N)
     Y[, log.trans] <- log(Y[, log.trans])
-    if (length(log.trans) < num.targets) {
+    if (length(log.trans) < N || force.standardize) {
       Y   <- colScale(Y)
       cm  <- attributes(Y)[['scaled:center']]
       csd <- attributes(Y)[['scaled:scale']]
     } else {
-      cm <- NULL
+      cm  <- NULL
       csd <- NULL
     }
     Y <- c(Y)
 
     log.seasons <- which(log.trans < N)
-    log.ann <- max(log.trans) == N
+    log.ann     <- max(log.trans) == N
+
     beta <- mb_fit(XTrain, Y, lambda, cm, csd, log.seasons, log.ann, N, sInd)
   }
 
@@ -187,22 +211,30 @@ mb_reconstruction <- function(instQ, pc.list, start.year, lambda = 1, log.trans 
 #' @export
 cv_mb <- function(instQ, pc.list, cv.folds, start.year,
                   lambda = 1,
-                  log.trans = NULL,
+                  log.trans = NULL, force.standardize = FALSE,
                   return.type = c('mb', 'metrics', 'Q')) {
 
   # Setup
   years     <- start.year:max(instQ$year)
   instInd   <- which(years %in% instQ$year)
   yearsInst <- years[instInd]
-  XListInst <- lapply(pc.list, function(x) prepend_ones(x[instInd, , drop = FALSE]))
-  XTrain    <- as.matrix(.bdiag(XListInst))
-  Y         <- instQ$Qa
   seasons   <- levels(instQ$season)
   N         <- length(seasons)
   sInd      <- 1:(N-1)
   hasLog    <- !is.null(log.trans)
   hasScale  <- hasLog && length(log.trans) < N
+
+  Y         <- instQ$Qa
   indMat    <- matrix(seq_along(Y), ncol = N)
+
+  XListInst <- lapply(pc.list, function(x) prepend_ones(x[instInd, , drop = FALSE]))
+  XTrain    <- as.matrix(.bdiag(XListInst))
+
+  # Cross-validation is trickier. We want to form the matrix and take log once before the CV runs
+  # but the standardization needs to be done for each CV run
+  # otherwise we have data leak.
+
+  # We keep the YMat matrix so that we can subset during the routine instead of having to make it repeatedly.
 
   if (hasLog) {
 
@@ -212,20 +244,35 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
     YMat <- matrix(Y, ncol = N)
     YMat[, log.trans] <- log(YMat[, log.trans])
 
-    if (hasScale) {
-      Y   <- c(colScale(YMat))
+    if (hasScale || force.standardize) {
+      Y   <- colScale(YMat)
       cm  <- attributes(Y)[['scaled:center']]
       csd <- attributes(Y)[['scaled:scale']]
+      Y   <- c(Y)
     } else {
-      Y <- c(YMat)
-      cm <- NULL
+      # No scaling, just merge back the logged matrix
+      Y   <- c(YMat)
+      cm  <- NULL
       csd <- NULL
     }
 
   } else {
+    log.seasons <- 0
+    log.ann <- FALSE
 
-    A <- cbind(do.call(cbind, XListInst[sInd]), -XListInst[[N]])
+    if (force.standardize) {
+      YMat <- matrix(Y, ncol = N)
+      Y    <- colScale(YMat)
+      cm   <- attributes(Y)[['scaled:center']]
+      csd  <- attributes(Y)[['scaled:scale']]
+      Y    <- c(Y)
 
+    } else {
+      # No log and no scale, don't do anything
+      cm   <- NULL
+      csd  <- NULL
+      Araw <- cbind(do.call(cbind, XListInst[sInd]), -XListInst[[N]])
+    }
   }
 
   # Cross-validation routine ------------------------------
@@ -236,37 +283,48 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
     valInd <- c(indMat[ z, ])
 
     # Calibration
+    # Make Y2 for calibration because we need to keep Y for validation.
 
     if (hasLog) {
 
-      # Rescaling is here so that the training process
-      # only sees the mean and sd of the training set
-      # not the entire series
-
-      if (hasScale) {
+      # Here YMat is already logged
+      if (hasScale || force.standardize) {
         Y2  <- c(colScale(YMat[-z, ]))
         cm  <- attributes(Y2)[['scaled:center']]
         csd <- attributes(Y2)[['scaled:scale']]
       } else {
-        Y2 <- Y[calInd]
-        cm <- NULL
+        Y2  <- Y[calInd]
+        cm  <- NULL
         csd <- NULL
       }
 
-      beta <- mb_fit(XTrain[calInd, ], Y2, lambda, cm, csd, log.trans, log.ann, N, sInd)
+      beta <- mb_fit(XTrain[calInd, ], Y2, lambda, cm, csd, log.seasons, log.ann, N, sInd)
 
     } else {
 
-      cm <- NULL
-      csd <- NULL
-      log.seasons <- 0
-      log.ann <- FALSE
+      # Here YMat is not logged
+
+      if (force.standardize) {
+        Y2 <- colScale(YMat[-z, ])
+        cm  <- attributes(Y2)[['scaled:center']]
+        csd <- attributes(Y2)[['scaled:scale']]
+        Y2 <- c(Y2)
+
+        ratio   <- csd / csd[N]
+        Xscaled <- lapply(sInd, function(k) XListInst[[k]][-z, ] * ratio[k])
+        Acal    <- cbind(do.call(cbind, Xscaled), -XListInst[[N]][-z, ])
+
+      } else {
+        Y2  <- Y[calInd]
+        cm  <- NULL
+        csd <- NULL
+        Acal <- Araw[-z, ]
+      }
 
       XTX <- crossprod(XTrain[calInd, ])
-      XTY <- crossprod(XTrain[calInd, ], Y[calInd])
-      ATA <- crossprod(A[-z, ])
+      XTY <- crossprod(XTrain[calInd, ], Y2)
+      ATA <- crossprod(Acal)
       beta <- solve(XTX + lambda * ATA, XTY)
-
     }
 
     # Validation
@@ -313,7 +371,8 @@ cv_site_selection <- function(choice, pool, n.site.min = 5,
                               seasons,
                               Xpool, instQ, cv.folds, start.year,
                               lambda = 1,
-                              log.trans, use.robust.mean = FALSE) {
+                              log.trans, force.standardize = FALSE,
+                              use.robust.mean = FALSE) {
 
   poolSubset <- pool[choice == 1L]
   num.targets <- length(seasons)
@@ -337,7 +396,7 @@ cv_site_selection <- function(choice, pool, n.site.min = 5,
       PC[, sv, drop = FALSE]
     })
 
-    cvFval <- cv_mb(instQ, pcList, cv.folds, start.year, lambda, log.trans, return.type = 'mb')
+    cvFval <- cv_mb(instQ, pcList, cv.folds, start.year, lambda, log.trans, force.standardize, return.type = 'mb')
 
     if (use.robust.mean) -tbrm(cvFval) else -mean(cvFval)
   } else -1e12

@@ -15,6 +15,7 @@ cv_site_selection(
   start.year,
   lambda = 1,
   log.trans,
+  force.standardize = FALSE,
   use.robust.mean = FALSE
 )
 }

@@ -11,6 +11,7 @@ cv_mb(
   start.year,
   lambda = 1,
   log.trans = NULL,
+  force.standardize = FALSE,
   return.type = c("mb", "metrics", "Q")
 )
 }
@@ -26,6 +27,8 @@ cv_mb(
 \item{lambda}{The penalty weight}
 
 \item{log.trans}{A vector containing indices of the targets to be log-transformed. If no transformation is needed, provide \code{NULL}.}
+
+\item{force.standardize}{If TRUE, all observations are standardized. See Details.}
 
 \item{return.type}{If 'mb', only the objective function value is returned. If 'metrics', all metrics are returned. If 'Q', all Q predictions are returned.}
 
