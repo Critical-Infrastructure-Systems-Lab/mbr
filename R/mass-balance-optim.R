@@ -19,28 +19,20 @@ lsq_mb <- function(hat, obs, lambda, mus, sigmas, log.seasons, log.ann, N, sInd)
     s2 <- 0
   } else {
 
-    # colSums() is much faster than rowSums()
-    # and is even faster than Rcpp versions
-    # rowScale() is also faster than colScale becase
-    # we don't have to do the t(t())
-
     # Convert to matrix
-    hatBack <- matrix(hat, nrow = N, byrow = TRUE)
-
-    # Take out the annual reconstruction
-    zHat <- hatBack[N, ]
+    hatBack <- matrix(hat, ncol = N)
 
     # Unscale for the seasons only
-    if (!is.null(mus)) hatBack <- rowUnscale(hatBack[sInd, ], mus[sInd], sigmas[sInd])
+    if (!is.null(mus)) hatBack[, sInd] <- colUnscale(hatBack[, sInd], mus[sInd], sigmas[sInd])
 
     # Take exponential where necessary
-    hatBack[log.seasons, ] <- exp(hatBack[log.seasons, ])
+    hatBack[, log.seasons] <- exp(hatBack[, log.seasons])
 
     if (any(is.infinite(hatBack))) {
       s2 <- 1e7 # GA needs finite f value
     } else {
       # Take sum
-      totalSeasonal <- colSums(hatBacks)
+      totalSeasonal <- rowsums(hatBack[, sInd])
 
       # Log-transform if necessary
       if (log.ann) totalSeasonal <- log(totalSeasonal)
@@ -49,7 +41,7 @@ lsq_mb <- function(hat, obs, lambda, mus, sigmas, log.seasons, log.ann, N, sInd)
       if (!is.null(mus)) totalSeasonal <- (totalSeasonal - mus[N]) / sigmas[N]
 
       # Calculate penalty term in the z-score space
-      s2 <- sum((totalSeasonal - zHat)^2)
+      s2 <- sum((totalSeasonal - hatBack[, N])^2)
     }
   }
   s1 + lambda * s2
@@ -68,7 +60,7 @@ lsq_mb <- function(hat, obs, lambda, mus, sigmas, log.seasons, log.ann, N, sInd)
 obj_fun <- function(beta, X, Y, lambda, mus, sigmas, log.seasons, log.ann, N, sInd) {
 
   hat <- X %*% beta
-  lsq_mb(hat, Y, lambda, log.seasons, mus, sigmas, log.ann, N, sInd)
+  lsq_mb(hat, Y, lambda, mus, sigmas, log.seasons, log.ann, N, sInd)
 }
 
 #' Fit parameters with mass balance criterion
@@ -107,7 +99,7 @@ prepend_ones <- function(x) cbind('Int' = rep(1, dim(x)[1]), x)
 #' @inheritParams lsq_mb
 #' @param season.names A character vector containing the names of the seasons
 #' @export
-back_trans <- function(hat, years, log.trans, mus, sigmas, N, season.names) {
+back_trans <- function(hat, years, mus, sigmas, log.trans, N, season.names) {
 
   # Here we use the column form because it's easier to do c() and we don't have to worry about speed
   hatBack <- matrix(hat, ncol = N)
@@ -137,9 +129,10 @@ mb_reconstruction <- function(instQ, pc.list, start.year, lambda = 1, log.trans 
   instInd   <- which(years %in% instQ$year)
   XList     <- lapply(pc.list, prepend_ones)
   XListInst <- lapply(XList, function(x) x[instInd, , drop = FALSE])
-  X         <- as.matrix(Matrix::.bdiag(XList))
-  XTrain    <- as.matrix(Matrix::.bdiag(XListInst))
-  N         <- length(levels(instQ$season))
+  X         <- as.matrix(.bdiag(XList))
+  XTrain    <- as.matrix(.bdiag(XListInst))
+  seasons   <- levels(instQ$season)
+  N         <- length(seasons)
   sInd      <- 1:(N-1)
   Y         <- instQ$Qa
 
@@ -179,7 +172,7 @@ mb_reconstruction <- function(instQ, pc.list, start.year, lambda = 1, log.trans 
   # Prediction ------------------------------------------
 
   hat <- X %*% beta
-  DT <- back_trans(hat, years, log.trans, cm, csd, N, levels(instQ$season))
+  DT <- back_trans(hat, years, cm, csd, log.trans, N, seasons)
   DT[, lambda := lambda][]
 }
 
@@ -201,9 +194,10 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
   instInd   <- which(years %in% instQ$year)
   yearsInst <- years[instInd]
   XListInst <- lapply(pc.list, function(x) prepend_ones(x[instInd, , drop = FALSE]))
-  XTrain    <- as.matrix(Matrix::.bdiag(XListInst))
+  XTrain    <- as.matrix(.bdiag(XListInst))
   Y         <- instQ$Qa
-  N         <- length(levels(instQ$season))
+  seasons   <- levels(instQ$season)
+  N         <- length(seasons)
   sInd      <- 1:(N-1)
   hasLog    <- !is.null(log.trans)
   hasScale  <- hasLog && length(log.trans) < N
@@ -278,7 +272,7 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
       ans <- fval
     } else {
       Qcv <- merge(
-        back_trans(hat, yearsInstInd, log.trans, cm, csd, N, levels(instQ$season)),
+        back_trans(hat, yearsInstInd, cm, csd, log.trans, N, seasons),
         instQ, by = c('year', 'season'))
       if (return.type == 'Q') {
         ans <- Qcv
@@ -312,10 +306,10 @@ cv_site_selection <- function(choice, pool, n.site.min = 5,
                               seasons,
                               Xpool, instQ, cv.folds, start.year,
                               lambda = 1,
-                              log.trans, num.targets,
-                              use.robust.mean = FALSE) {
+                              log.trans, use.robust.mean = FALSE) {
 
   poolSubset <- pool[choice == 1L]
+  num.targets <- length(seasons)
 
   # Constraint: at least n.site.min for each season
   # If not met, return -1e7
@@ -338,6 +332,6 @@ cv_site_selection <- function(choice, pool, n.site.min = 5,
 
     cvFval <- cv_mb(instQ, pcList, cv.folds, start.year, lambda, log.trans, return.type = 'mb')
 
-    if (use.robust.mean) -dplR::mean(cvFval) else -mean(cvFval)
+    if (use.robust.mean) -tbrm(cvFval) else -mean(cvFval)
   } else -1e7
 }

@@ -10,8 +10,8 @@
 colScale <- function(x, add_attr = TRUE) {
 
   # Get the column means
-  cm <- Rfast::colmeans(x)
-  csd <- Rfast::colVars(x, std = TRUE)
+  cm <- colmeans(x)
+  csd <- colVars(x, std = TRUE)
   x <- t((t(x) - cm) / csd)
   if (add_attr) {
     attr(x, "scaled:center") <- cm
@@ -28,8 +28,8 @@ colScale <- function(x, add_attr = TRUE) {
 rowScale <- function(x, add_attr = TRUE) {
 
   # Get the column means
-  rm <- rowMeans(x, na.rm = TRUE)
-  rsd <- matrixStats::rowSds(x, center = rm)
+  rm <- rowmeans(x)
+  rsd <- rowVars(x, std = TRUE)
   x <- (x - rm) / rsd
   if (add_attr) {
     attr(x, "scaled:center") <- rm
