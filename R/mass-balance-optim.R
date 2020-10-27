@@ -255,14 +255,20 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
         csd <- NULL
       }
 
-      beta <- mb_fit(XTrain[calInd, ], Y2, lambda, cm, csd, log.seasons, log.ann, N, sInd)
+      beta <- mb_fit(XTrain[calInd, ], Y2, lambda, cm, csd, log.trans, log.ann, N, sInd)
 
     } else {
+
+      cm <- NULL
+      csd <- NULL
+      log.seasons <- 0
+      log.ann <- FALSE
 
       XTX <- crossprod(XTrain[calInd, ])
       XTY <- crossprod(XTrain[calInd, ], Y[calInd])
       ATA <- crossprod(A[-z, ])
       beta <- solve(XTX + lambda * ATA, XTY)
+
     }
 
     # Validation
