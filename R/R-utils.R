@@ -23,9 +23,6 @@ colScale <- function(x, add_attr = TRUE) {
   x
 }
 
-
-
-
 #' Scale rows of a Matrix
 #'
 #' Similar to [colScale]
