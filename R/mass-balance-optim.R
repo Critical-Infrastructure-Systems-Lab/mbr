@@ -29,7 +29,7 @@ lsq_mb <- function(hat, obs, lambda, mus, sigmas, log.seasons, log.ann, N, sInd)
     hatBack[, log.seasons] <- exp(hatBack[, log.seasons])
 
     if (any(is.infinite(hatBack))) {
-      s2 <- 1e7 # GA needs finite f value
+      s2 <- 1e12 # GA needs finite f value
     } else {
       # Take sum
       totalSeasonal <- rowsums(hatBack[, sInd])
@@ -312,7 +312,7 @@ cv_site_selection <- function(choice, pool, n.site.min = 5,
   num.targets <- length(seasons)
 
   # Constraint: at least n.site.min for each season
-  # If not met, return -1e7
+  # If not met, return -1e12
   n.sites <- poolSubset[, .N, by = season][, N]
 
   if (length(n.sites) == num.targets && all(n.sites > n.site.min)) {
@@ -333,5 +333,5 @@ cv_site_selection <- function(choice, pool, n.site.min = 5,
     cvFval <- cv_mb(instQ, pcList, cv.folds, start.year, lambda, log.trans, return.type = 'mb')
 
     if (use.robust.mean) -tbrm(cvFval) else -mean(cvFval)
-  } else -1e7
+  } else -1e12
 }
