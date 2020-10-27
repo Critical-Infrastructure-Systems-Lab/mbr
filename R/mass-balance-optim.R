@@ -224,8 +224,6 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
 
   } else {
 
-
-
     A <- cbind(do.call(cbind, XListInst[sInd]), -XListInst[[N]])
 
   }
@@ -281,7 +279,7 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
       ans <- fval
     } else {
       Qcv <- merge(
-        back_trans(hat, yearsInstInd, cm, csd, log.trans, N, seasons),
+        back_trans(hat, yearsInst, cm, csd, log.trans, N, seasons),
         instQ, by = c('year', 'season'))
       if (return.type == 'Q') {
         ans <- Qcv
