@@ -222,7 +222,7 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
   N         <- length(seasons)
   sInd      <- 1:(N-1)
   hasLog    <- !is.null(log.trans)
-  hasScale  <- hasLog && length(log.trans) < N
+  hasScale  <- (hasLog && length(log.trans) < N) || force.standardize
 
   Y         <- instQ$Qa
   indMat    <- matrix(seq_along(Y), ncol = N)
@@ -245,7 +245,7 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
     YMat <- matrix(Y, ncol = N)
     YMat[, log.trans] <- log(YMat[, log.trans])
 
-    if (hasScale || force.standardize) {
+    if (hasScale) {
       Y   <- colScale(YMat)
       cm  <- attributes(Y)[['scaled:center']]
       csd <- attributes(Y)[['scaled:scale']]
@@ -254,14 +254,15 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
       # No scaling, just merge back the logged matrix
       Y   <- c(YMat)
       cm  <- NULL
-      Y <- c(Y)
+      csd <- NULL
+      Y   <- c(Y)
     }
 
   } else {
     log.seasons <- 0
     log.ann <- FALSE
 
-    if (force.standardize) {
+    if (hasScale) {
       YMat <- matrix(Y, ncol = N)
       Y    <- colScale(YMat)
       cm   <- attributes(Y)[['scaled:center']]
@@ -279,6 +280,7 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
 
   one_cv <- function(z) {
 
+    # Indices on stacked form
     calInd <- c(indMat[-z, ])
     valInd <- c(indMat[ z, ])
 
@@ -289,19 +291,19 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
 
       # Here YMat is not logged
       if (force.standardize) {
-        Y2 <- colScale(YMat[-z, ])
+        Y2  <- colScale(YMat[-z, ])
         cm  <- attributes(Y2)[['scaled:center']]
         csd <- attributes(Y2)[['scaled:scale']]
-        Y2 <- c(Y2)
+        Y2  <- c(Y2)
 
         ratio   <- csd / csd[N]
         Xscaled <- lapply(sInd, function(k) XListInst[[k]][-z, ] * ratio[k])
         Acal    <- cbind(do.call(cbind, Xscaled), -XListInst[[N]][-z, ])
 
       } else {
-        Y2  <- Y[calInd]
-        cm  <- NULL
-        csd <- NULL
+        Y2   <- Y[calInd]
+        cm   <- NULL
+        csd  <- NULL
         Acal <- Araw[-z, ]
       }
 
@@ -352,10 +354,8 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
 #' @param Xpool The input matrix of all the sites in the pool
 #' @export
 cv_site_selection <- function(choice, pool, n.site.min = 5,
-                              seasons,
-                              Xpool, instQ, cv.folds, start.year,
-                              lambda = 1,
-                              log.trans, force.standardize = FALSE,
+                              seasons, Xpool, instQ, cv.folds, start.year,
+                              lambda = 1, log.trans, force.standardize = FALSE,
                               use.robust.mean = FALSE) {
 
   poolSubset <- pool[choice == 1L]
