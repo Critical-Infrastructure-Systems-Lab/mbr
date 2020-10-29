@@ -234,7 +234,8 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
   # but the standardization needs to be done for each CV run
   # otherwise we have data leak.
 
-  # We keep the YMat matrix so that we can subset during the routine instead of having to make it repeatedly.
+  # We keep the YMat matrix so that we can subset during the routine instead of having
+  # to make it repeatedly.
 
   if (hasLog) {
 
@@ -253,7 +254,7 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
       # No scaling, just merge back the logged matrix
       Y   <- c(YMat)
       cm  <- NULL
-      csd <- NULL
+      Y <- c(Y)
     }
 
   } else {
@@ -266,7 +267,6 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
       cm   <- attributes(Y)[['scaled:center']]
       csd  <- attributes(Y)[['scaled:scale']]
       Y    <- c(Y)
-
     } else {
       # No log and no scale, don't do anything
       cm   <- NULL
@@ -287,23 +287,7 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
 
     if (hasLog) {
 
-      # Here YMat is already logged
-      if (hasScale || force.standardize) {
-        Y2  <- c(colScale(YMat[-z, ]))
-        cm  <- attributes(Y2)[['scaled:center']]
-        csd <- attributes(Y2)[['scaled:scale']]
-      } else {
-        Y2  <- Y[calInd]
-        cm  <- NULL
-        csd <- NULL
-      }
-
-      beta <- mb_fit(XTrain[calInd, ], Y2, lambda, cm, csd, log.seasons, log.ann, N, sInd)
-
-    } else {
-
       # Here YMat is not logged
-
       if (force.standardize) {
         Y2 <- colScale(YMat[-z, ])
         cm  <- attributes(Y2)[['scaled:center']]
