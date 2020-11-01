@@ -4,7 +4,7 @@
 #' @importFrom dplR tbrm
 #' @importFrom ldsr calculate_metrics
 #' @importFrom Matrix .bdiag
-#' @importFrom matrixStats colSds rowSds
+#' @importFrom Rfast colsums rowsums colVars rowVars colmeans rowmeans
 #' @importFrom stats optim
 #' @keywords internal
 "_PACKAGE"

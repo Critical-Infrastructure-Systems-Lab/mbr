@@ -19,7 +19,7 @@ Imports:
     ldsr,
     MASS,
     Matrix,
-    matrixStats,
+    Rfast,
     stats
 RoxygenNote: 7.1.0
 Roxygen:

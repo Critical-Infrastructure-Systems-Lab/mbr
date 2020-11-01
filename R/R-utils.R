@@ -10,11 +10,11 @@
 colScale <- function(x, add_attr = TRUE) {
 
   # Get the column means
-  # cm <- colmeans(x)
-  # csd <- colVars(x, std = TRUE)
+  cm <- colmeans(x)
+  csd <- colVars(x, std = TRUE)
 
-  cm <- colMeans(x)
-  csd <- colSds(x)
+  # cm <- colMeans(x)
+  # csd <- colSds(x)
   x <- t((t(x) - cm) / csd)
   if (add_attr) {
     attr(x, "scaled:center") <- cm
@@ -31,10 +31,10 @@ colScale <- function(x, add_attr = TRUE) {
 rowScale <- function(x, add_attr = TRUE) {
 
   # Get the column means
-  # rm <- rowmeans(x)
-  # rsd <- rowVars(x, std = TRUE)
-  rm <- rowMeans(x)
-  rsd <- rowSds(x, std = TRUE)
+  rm <- rowmeans(x)
+  rsd <- rowVars(x, std = TRUE)
+  # rm <- rowMeans(x)
+  # rsd <- rowSds(x, std = TRUE)
   x <- (x - rm) / rsd
   if (add_attr) {
     attr(x, "scaled:center") <- rm

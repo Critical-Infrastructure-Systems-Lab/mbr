@@ -32,8 +32,8 @@ lsq_mb <- function(hat, obs, lambda, mus, sigmas, log.seasons, log.ann, N, sInd)
       s2 <- 1e12 # GA needs finite f value
     } else {
       # Take sum
-      # totalSeasonal <- rowsums(hatBack[, sInd])
-      totalSeasonal <- rowSums(hatBack[, sInd])
+      totalSeasonal <- rowsums(hatBack[, sInd])
+      # totalSeasonal <- rowSums(hatBack[, sInd])
 
       # Log-transform if necessary
       if (log.ann) totalSeasonal <- log(totalSeasonal)
@@ -289,8 +289,24 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
 
     if (hasLog) {
 
+      # Here YMat is already logged
+
+      if (hasScale) { # hasLog and hasScale
+        Y2  <- colScale(YMat[-z, ])
+        cm  <- attributes(Y2)[['scaled:center']]
+        csd <- attributes(Y2)[['scaled:scale']]
+        Y2  <- c(Y2)
+      } else {  # hasLog but no scale
+        Y2   <- Y[calInd]
+        cm   <- NULL
+        csd  <- NULL
+      }
+    } else {
+
       # Here YMat is not logged
-      if (force.standardize) {
+
+      if (hasScale) { # hasScale but no log
+
         Y2  <- colScale(YMat[-z, ])
         cm  <- attributes(Y2)[['scaled:center']]
         csd <- attributes(Y2)[['scaled:scale']]
@@ -299,7 +315,6 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
         ratio   <- csd / csd[N]
         Xscaled <- lapply(sInd, function(k) XListInst[[k]][-z, ] * ratio[k])
         Acal    <- cbind(do.call(cbind, Xscaled), -XListInst[[N]][-z, ])
-
       } else {
         Y2   <- Y[calInd]
         cm   <- NULL
