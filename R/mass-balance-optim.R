@@ -301,6 +301,9 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
         cm   <- NULL
         csd  <- NULL
       }
+
+      beta <- mb_fit(XTrain[calInd, ], Y2, lambda, cm, csd, log.seasons, log.ann, N, sInd)
+
     } else {
 
       # Here YMat is not logged
