@@ -75,3 +75,100 @@ rowUnscale <- function(x, rm, rsd, drop = TRUE) {
   x
 }
 
+#' Reconstruction metrics
+#'
+#' Calculate reconstruction metrics from the instrumental period
+#' @param sim A vector of reconstruction output for instrumental period
+#' @param obs A vector of all observations
+#' @param z A vector of left out indices in cross validation
+#' @param norm.fun The function (unquoted name) used to calculate the normalizing constant. Default is `mean()`, but other functions such as `sd()` can also be used. THe function must take a vector as input and return a scalar as output, and must have an argument `na.rm = TRUE`.
+#' @return A named vector of performance metrics
+#' @examples
+#' calculate_metrics(rnorm(100), rnorm(100), z = 1:10)
+#' calculate_metrics(rnorm(100), rnorm(100), z = 1:10, norm.fun = sd)
+#' @export
+calculate_metrics <- function(sim, obs, z, norm.fun = mean) {
+  train.obs <- obs[-z]
+  obsInd <- which(!is.na(train.obs))
+  train.obs <- train.obs[obsInd]
+  train.sim <- sim[-z][obsInd]
+  val.sim <- sim[z]
+  val.obs <- obs[z]
+
+  c(R2    = NSE(train.sim, train.obs), # Use the NSE form of R2
+    RE    = RE(val.sim, val.obs, mean(train.obs)),
+    CE    = NSE(val.sim, val.obs),
+    nRMSE = nRMSE(val.sim, val.obs, norm.fun(obs, na.rm = TRUE)),
+    KGE   = KGE(val.sim, val.obs)
+  )
+}
+
+#' Nash-Sutcliffe Efficiency
+#'
+#' @param yhat Model outputs
+#' @param y Observations
+#' @return NSE
+#' @examples
+#' NSE(rnorm(100), rnorm(100))
+#' @export
+NSE <- function(yhat, y) {
+  ybar <- mean(y)
+  rss <- sum((y - yhat) * (y - yhat))
+  tss <- sum((y - ybar) * (y - ybar))
+  1 - rss/tss
+}
+
+#' Normalized root-mean-square error
+#'
+#' RMSE is normalized by the normalization constant
+#' @param yhat Model outputs
+#' @param y Observations
+#' @param normConst The normalization constant
+#' @return normalized RMSE
+#' @examples
+#' x <- rnorm(100)
+#' y <- rnorm(100)
+#' nRMSE(x, y, sd(y))
+#' @export
+nRMSE <- function(yhat, y, normConst) {
+  rmse <- sqrt(mean((y - yhat) * (y - yhat)))
+  rmse / normConst
+}
+
+#' Kling-Gupta Efficiency
+#'
+#' @param yhat Model outputs
+#' @param y Observations
+#' @return KGE
+#' @examples
+#' KGE(rnorm(100), rnorm(100))
+#' @export
+KGE <- function(yhat, y) {
+  mu <- mean(y)
+  mu_hat <- mean(yhat)
+  sigma <- sd(y)
+  sigma_hat <- sd(yhat)
+  r <- cor(yhat, y)
+  alpha <- sigma_hat / sigma
+  beta <- mu_hat / mu
+  EDsq <- (r - 1) * (r - 1) + (alpha - 1) * (alpha - 1) + (beta - 1) * (beta - 1)
+  1 - sqrt(EDsq)
+}
+
+#' Reduction of Error
+#'
+#' @param yhat Model outputs in the validation set
+#' @param y Observations in the validation set
+#' @param yc_bar Mean observations in the calibration set
+#' @return RE
+#' @examples
+#' x <- rnorm(100)
+#' y <- rnorm(100)
+#' yc_bar <- mean(x[1:50])
+#' RE(x[51:100], y[51:100], yc_bar)
+#' @export
+RE <- function(yhat, y, yc_bar) {
+  rss <- sum((y - yhat) * (y - yhat))
+  tss <- sum((y - yc_bar) * (y - yc_bar))
+  1 - rss/tss
+}

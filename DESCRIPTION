@@ -16,7 +16,6 @@ Imports:
     data.table,
     dplR,
     leaps,
-    ldsr,
     MASS,
     Matrix,
     Rfast,

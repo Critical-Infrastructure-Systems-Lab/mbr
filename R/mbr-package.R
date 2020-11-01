@@ -2,7 +2,6 @@
 #' @name mbr
 #' @import data.table
 #' @importFrom dplR tbrm
-#' @importFrom ldsr calculate_metrics
 #' @importFrom Matrix .bdiag
 #' @importFrom Rfast colsums rowsums colVars rowVars colmeans rowmeans
 #' @importFrom stats optim
