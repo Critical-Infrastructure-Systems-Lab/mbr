@@ -20,20 +20,21 @@ lsq_mb <- function(hat, obs, lambda, mus, sigmas, log.seasons, log.ann, N, sInd)
   } else {
 
     # Convert to matrix
-    hatBack <- matrix(hat, ncol = N)
+    # Use row form as rowUnscale is faster
+
+    hatBack <- matrix(hat, nrow = N, byrow = TRUE)
 
     # Unscale for the seasons only
-    if (!is.null(mus)) hatBack[, sInd] <- colUnscale(hatBack[, sInd], mus[sInd], sigmas[sInd])
+    if (!is.null(mus)) hatBack[sInd, ] <- rowUnscale(hatBack[sInd, ], mus[sInd], sigmas[sInd])
 
     # Take exponential where necessary
-    hatBack[, log.seasons] <- exp(hatBack[, log.seasons])
+    hatBack[log.seasons, ] <- exp(hatBack[log.seasons, ])
 
     if (any(is.infinite(hatBack))) {
       s2 <- 1e12 # GA needs finite f value
     } else {
       # Take sum
-      totalSeasonal <- rowsums(hatBack[, sInd])
-      # totalSeasonal <- rowSums(hatBack[, sInd])
+      totalSeasonal <- colsums(hatBack[sInd, ])
 
       # Log-transform if necessary
       if (log.ann) totalSeasonal <- log(totalSeasonal)
@@ -42,7 +43,7 @@ lsq_mb <- function(hat, obs, lambda, mus, sigmas, log.seasons, log.ann, N, sInd)
       if (!is.null(mus)) totalSeasonal <- (totalSeasonal - mus[N]) / sigmas[N]
 
       # Calculate penalty term in the z-score space
-      s2 <- sum((totalSeasonal - hatBack[, N])^2)
+      s2 <- sum((totalSeasonal - hatBack[N, ])^2)
     }
   }
   s1 + lambda * s2
