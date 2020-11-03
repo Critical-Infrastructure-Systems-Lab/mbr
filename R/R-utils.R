@@ -49,14 +49,10 @@ rowScale <- function(x, add_attr = TRUE) {
 #' @param x A matrix.
 #' @param cm A vector of column means
 #' @param csd A vector of column standard deviations
-#' @param drop If TRUE, drop the attributes
 #' @return The unscaled matrix
 #' @export
-colUnscale <- function(x, cm, csd, drop = TRUE) {
-  x <- sweep(x, 2, csd, '*')
-  x <- sweep(x, 2, cm, '+')
-  if (drop) attributes(x)[2:3] <- NULL
-  x
+colUnscale <- function(x, cm, csd) {
+  t(t(x) * csd + cm)
 }
 
 #' Unscale rows of a matrix
@@ -65,14 +61,10 @@ colUnscale <- function(x, cm, csd, drop = TRUE) {
 #' @param x A matrix.
 #' @param rm A vector of row means
 #' @param rsd A vector of row standard deviations
-#' @param drop If TRUE, drop the attributes
 #' @return The unscaled matrix
 #' @export
-rowUnscale <- function(x, rm, rsd, drop = TRUE) {
-  x <- sweep(x, 1, rsd, '*')
-  x <- sweep(x, 1, rm, '+')
-  if (drop) attributes(x)[2:3] <- NULL
-  x
+rowUnscale <- function(x, rm, rsd) {
+  x * rsd + rm
 }
 
 #' Reconstruction metrics

@@ -4,7 +4,7 @@
 \alias{colUnscale}
 \title{Unscale columns of a matrix}
 \usage{
-colUnscale(x, cm, csd, drop = TRUE)
+colUnscale(x, cm, csd)
 }
 \arguments{
 \item{x}{A matrix.}
@@ -12,8 +12,6 @@ colUnscale(x, cm, csd, drop = TRUE)
 \item{cm}{A vector of column means}
 
 \item{csd}{A vector of column standard deviations}
-
-\item{drop}{If TRUE, drop the attributes}
 }
 \value{
 The unscaled matrix

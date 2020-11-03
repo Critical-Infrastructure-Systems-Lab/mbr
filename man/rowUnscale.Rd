@@ -4,7 +4,7 @@
 \alias{rowUnscale}
 \title{Unscale rows of a matrix}
 \usage{
-rowUnscale(x, rm, rsd, drop = TRUE)
+rowUnscale(x, rm, rsd)
 }
 \arguments{
 \item{x}{A matrix.}
@@ -12,8 +12,6 @@ rowUnscale(x, rm, rsd, drop = TRUE)
 \item{rm}{A vector of row means}
 
 \item{rsd}{A vector of row standard deviations}
-
-\item{drop}{If TRUE, drop the attributes}
 }
 \value{
 The unscaled matrix
