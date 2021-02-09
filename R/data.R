@@ -1,0 +1,24 @@
+#' Seasonal streamflow at P.1 station
+#'
+#' Streamflow at P.1 station (Chiang Mai, Thailand) for three reconstruction targets: dry season (NJ, Nov-Jun), wet season (JO, Jul-Oct), and water year (WY, Nov-Oct), as used by Nguyen et al (2020).
+#'
+#' @format A data table with 246 rows and 3 variables:
+#' \describe{
+#'   \item{season}{a factor with three levels: "NJ", "JO", and "WY"}
+#'   \item{year}{integer, from 1922 to 2003}
+#'   \item{Qa}{Annual flow for each target}
+#' }
+#' @source \url{https://www.essoar.org/doi/10.1002/essoar.10504791.1}
+#' @references
+#' Nguyen, H. T. T., Galelli, S., Xu, C., & Buckley, B. (2020). Multi-Proxy, Multi-Season Streamflow Reconstruction with Mass Balance Adjustment. Earth and Space Science Open Archive, 22. https://doi.org/10.1002/essoar.10504791.1
+"p1Seasonal"
+
+
+#' Principal components of tree rings
+#'
+#' Principal components of the Southeast Asian Dendrochronology Network, after appropriate sites have been selected for each season.
+#' @format A list with three elements (NJ, JO, and WY), each element is a principal component matrix.
+#' @source \url{https://www.essoar.org/doi/10.1002/essoar.10504791.1}
+#' @references
+#' Nguyen, H. T. T., Galelli, S., Xu, C., & Buckley, B. (2020). Multi-Proxy, Multi-Season Streamflow Reconstruction with Mass Balance Adjustment. Earth and Space Science Open Archive, 22. https://doi.org/10.1002/essoar.10504791.1
+"pc3seasons"
