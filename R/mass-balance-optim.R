@@ -10,7 +10,6 @@
 #' @param N The number of targets (number of seasons plus one for the annual reconstruction).
 #' @param sInd Indices of the seasons, i.e, 1...N-1
 #' @return Objective function value: least squares plus a penalty term.
-#' @export
 lsq_mb <- function(hat, obs, lambda, mus, sigmas, log.seasons, log.ann, N, sInd) {
 
   s1 <- sum((hat - obs)^2) # Regression part
@@ -58,7 +57,6 @@ lsq_mb <- function(hat, obs, lambda, mus, sigmas, log.seasons, log.ann, N, sInd)
 #' @param Y Observed Dry, Wet, and Annual log-transformed flows
 #' @inheritParams lsq_mb
 #' @return Objective function value
-#' @export
 obj_fun <- function(beta, X, Y, lambda, mus, sigmas, log.seasons, log.ann, N, sInd) {
 
   hat <- X %*% beta
@@ -69,7 +67,6 @@ obj_fun <- function(beta, X, Y, lambda, mus, sigmas, log.seasons, log.ann, N, sI
 #'
 #' @inheritParams obj_fun
 #' @return A one-column matrix of beta value
-#' @export
 mb_fit <- function(X, Y, lambda, mus, sigmas, log.seasons, log.ann, N, sInd) {
 
   # Solve the free optimization and use the result as initial value L-BFGS-B search
@@ -90,7 +87,6 @@ mb_fit <- function(X, Y, lambda, mus, sigmas, log.seasons, log.ann, N, sInd) {
 #'
 #' @param x The input matrix
 #' @return x with a column of ones prepended, which is named 'Int' for 'intercept'
-#' @export
 prepend_ones <- function(x) cbind('Int' = rep(1, dim(x)[1]), x)
 
 #' Back-transformation
@@ -98,9 +94,9 @@ prepend_ones <- function(x) cbind('Int' = rep(1, dim(x)[1]), x)
 #' Transform the reconstructed values back to the flow space
 #' and convert to data.table
 #' @param years A vector of all years in the study period
+#' @param log.trans A vector containing the indices of the columns to be log-transformed.
 #' @inheritParams lsq_mb
 #' @param season.names A character vector containing the names of the seasons
-#' @export
 back_trans <- function(hat, years, mus, sigmas, log.trans, N, season.names) {
 
   # Here we use the column form because it's easier to do c() and we don't have to worry about speed
@@ -124,6 +120,8 @@ back_trans <- function(hat, years, mus, sigmas, log.trans, N, season.names) {
 #' @param force.standardize If TRUE, all observations are standardized. See Details.
 #' @section Details:
 #' If some targets are log transformed and some are not, they will have different scales, which affects the objective function. In this case the observations will be standardized so that they are in the same range. Otherwise, standardization are skipped for speed. However, in some cases you may want to standardize any ways, for example when flows in some months are much larger than in other months. In this case, set `force.standardize = TRUE`.
+#' @examples
+#' mb_reconstruction(p1Seasonal, pc3seasons, 1750, lambda = 1, log.trans = 1:3)
 #' @export
 mb_reconstruction <- function(instQ, pc.list, start.year, lambda = 1,
                               log.trans = NULL, force.standardize = FALSE) {
@@ -206,9 +204,12 @@ mb_reconstruction <- function(instQ, pc.list, start.year, lambda = 1,
 #' Cross-validation
 #'
 #' @inheritParams mb_reconstruction
-#' @param pc.list.inst List of PC matrices
+#' @param pc.list List of PC matrices
 #' @param cv.folds A list containing the cross validation folds
 #' @param return.type If 'mb', only the objective function value is returned. If 'metrics', all metrics are returned. If 'Q', all Q predictions are returned.
+#' @examples
+#' cvFolds <- make_Z(1922:2003, nRuns = 50, frac = 0.25, contiguous = TRUE)
+#' cv <- cv_mb(p1Seasonal, pc3seasons, cvFolds, 1750, log.trans = 1:3, return.type = 'metrics')
 #' @export
 cv_mb <- function(instQ, pc.list, cv.folds, start.year,
                   lambda = 1,
@@ -230,6 +231,9 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
 
   XListInst <- lapply(pc.list, function(x) prepend_ones(x[instInd, , drop = FALSE]))
   XTrain    <- as.matrix(.bdiag(XListInst))
+
+  # To pass R CMD CHECK for NSE
+  Q <- Qa <- season <- NULL
 
   # Cross-validation is trickier. We want to form the matrix and take log once before the CV runs
   # but the standardization needs to be done for each CV run
@@ -360,47 +364,7 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
   if (return.type == 'mb') { # A vector of fval
     unlist(lapply(cv.folds, one_cv), use.names = FALSE)
   } else { # A data.table of all metrics or all reps
-    lapplyrbind(cv.folds, one_cv, id = 'rep')
+    rbindlist(lapply(cv.folds, one_cv), idcol = 'rep')
   }
 }
 
-#' Calculate the objective function value in cross-validation
-#'
-#' Takes the negative value for use in GA as GA maximizes. So the less negative the better.
-#' @param choice Binary vector of choices
-#' @param pool Data.table listing the sites with significant correlations for each season
-#' @param n.site.min Minimum number of sites to be kept for each season
-#' @param Xpool The input matrix of all the sites in the pool
-#' @export
-cv_site_selection <- function(choice, pool, n.site.min = 5,
-                              seasons, Xpool, instQ, cv.folds, start.year,
-                              lambda = 1, log.trans, force.standardize = FALSE,
-                              use.robust.mean = FALSE) {
-
-  poolSubset <- pool[choice == 1L]
-  num.targets <- length(seasons)
-
-  # Constraint: at least n.site.min for each season
-  # If not met, return -1e12
-  n.sites <- poolSubset[, .N, by = season][, N]
-
-  if (length(n.sites) == num.targets && all(n.sites > n.site.min)) {
-
-    years     <- start.year:max(instQ$year)
-    instInd   <- which(years %in% instQ$year)
-
-    pcList <- lapply(seasons, function(s) {
-      Qa <- instQ[s]
-      X <- Xpool[, poolSubset[s, site]]
-      PC <- wPCA(X, use.eigen = FALSE, return.matrix = TRUE)
-      sv <- input_selection(
-        PC[instInd, , drop = FALSE],
-        Qa$Qa, 'leaps backward', nvmax = 8)
-      PC[, sv, drop = FALSE]
-    })
-
-    cvFval <- cv_mb(instQ, pcList, cv.folds, start.year, lambda, log.trans, force.standardize, return.type = 'mb')
-
-    if (use.robust.mean) -tbrm(cvFval) else -mean(cvFval)
-  } else -1e12
-}
