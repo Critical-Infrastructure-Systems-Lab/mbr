@@ -15,6 +15,8 @@ back_trans(hat, years, mus, sigmas, log.trans, N, season.names)
 
 \item{sigmas}{A vector of the standard deviations, one for each target.}
 
+\item{log.trans}{A vector containing the indices of the columns to be log-transformed.}
+
 \item{N}{The number of targets (number of seasons plus one for the annual reconstruction).}
 
 \item{season.names}{A character vector containing the names of the seasons}

@@ -18,7 +18,7 @@ cv_mb(
 \arguments{
 \item{instQ}{Instrumental data, in the same order as pc.list. The "season" column must be a factor.}
 
-\item{pc.list}{List of PC matrices. The first element is for the first season, second element for second season, and so on. The last element is for the annual reconstruction.}
+\item{pc.list}{List of PC matrices}
 
 \item{cv.folds}{A list containing the cross validation folds}
 
@@ -31,9 +31,11 @@ cv_mb(
 \item{force.standardize}{If TRUE, all observations are standardized. See Details.}
 
 \item{return.type}{If 'mb', only the objective function value is returned. If 'metrics', all metrics are returned. If 'Q', all Q predictions are returned.}
-
-\item{pc.list.inst}{List of PC matrices}
 }
 \description{
 Cross-validation
+}
+\examples{
+cvFolds <- make_Z(1922:2003, nRuns = 50, frac = 0.25, contiguous = TRUE)
+cv <- cv_mb(p1Seasonal, pc3seasons, cvFolds, 1750, log.trans = 1:3, return.type = 'metrics')
 }

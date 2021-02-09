@@ -34,3 +34,6 @@ Mass-balance-adjusted reconstruction
 If some targets are log transformed and some are not, they will have different scales, which affects the objective function. In this case the observations will be standardized so that they are in the same range. Otherwise, standardization are skipped for speed. However, in some cases you may want to standardize any ways, for example when flows in some months are much larger than in other months. In this case, set \code{force.standardize = TRUE}.
 }
 
+\examples{
+mb_reconstruction(p1Seasonal, pc3seasons, 1750, lambda = 1, log.trans = 1:3)
+}

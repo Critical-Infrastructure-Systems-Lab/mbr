@@ -6,7 +6,6 @@
 #' @return The scaled matrix.
 #' @section Reference:
 #' This function was adopted from John Muschelli's code on \href{hopstat.wordpress.com/2016/02/23/a-faster-scale-function/}{StackOverflow}, but I changed the underlying functions to calculate mean and standard deviation from `matrixStats` to `Rfast`, which is much faster.
-#' @export
 colScale <- function(x, add_attr = TRUE) {
 
   # Get the column means
@@ -26,8 +25,8 @@ colScale <- function(x, add_attr = TRUE) {
 #' Scale rows of a Matrix
 #'
 #' Similar to [colScale]
+#' @inheritParams colScale
 #' @return The scaled matrix.
-#' @export
 rowScale <- function(x, add_attr = TRUE) {
 
   # Get the column means
@@ -50,7 +49,6 @@ rowScale <- function(x, add_attr = TRUE) {
 #' @param cm A vector of column means
 #' @param csd A vector of column standard deviations
 #' @return The unscaled matrix
-#' @export
 colUnscale <- function(x, cm, csd) {
   t(t(x) * csd + cm)
 }
@@ -62,7 +60,6 @@ colUnscale <- function(x, cm, csd) {
 #' @param rm A vector of row means
 #' @param rsd A vector of row standard deviations
 #' @return The unscaled matrix
-#' @export
 rowUnscale <- function(x, rm, rsd) {
   x * rsd + rm
 }
@@ -93,6 +90,37 @@ calculate_metrics <- function(sim, obs, z, norm.fun = mean) {
     nRMSE = nRMSE(val.sim, val.obs, norm.fun(obs, na.rm = TRUE)),
     KGE   = KGE(val.sim, val.obs)
   )
+}
+
+#' Make cross-validation folds.
+#'
+#' Make a list of cross-validation folds. Each element of the list is a vector of the cross-validation points for one cross-validation run.
+#' @param obs Vector of observations.
+#' @param nRuns Number of repetitions.
+#' @param frac Fraction of left-out points. For leave-one-out, use `frac = 1`, otherwise use any value less than 1. Default is 0.1 (leave-10%-out).
+#' @param contiguous Logical. If `TRUE`, the default, the left-out points are made in contiguous blocks; otherwise, they are scattered randomly.
+#' @return A list of cross-validation folds
+#' @examples
+#' Z <- make_Z(p1Seasonal$Qa, nRuns = 30, frac = 0.25, contiguous = TRUE)
+#' @export
+make_Z <- function(obs, nRuns = 30, frac = 0.1, contiguous = TRUE) {
+  obsInd <- which(!is.na(obs))
+  if (frac == 1) {
+    split(obsInd, obsInd)
+  } else {
+    n <- length(obsInd)
+    k <- floor(n * frac) # leave-k-out
+    if (contiguous) {
+      maxInd <- n - k # Highest possible position in of obsInd
+      if (maxInd < nRuns) { # Not enough samples, reduce k
+        maxInd <- nRuns
+        k <- n - nRuns
+      }
+      lapply(sort(sample(1:maxInd, nRuns)), function(x) obsInd[x:(x + k)])
+    } else {
+      replicate(nRuns, sort(sample(obsInd, k, replace = FALSE)), simplify = FALSE)
+    }
+  }
 }
 
 #' Nash-Sutcliffe Efficiency
@@ -138,9 +166,9 @@ nRMSE <- function(yhat, y, normConst) {
 KGE <- function(yhat, y) {
   mu <- mean(y)
   mu_hat <- mean(yhat)
-  sigma <- sd(y)
-  sigma_hat <- sd(yhat)
-  r <- cor(yhat, y)
+  sigma <- stats::sd(y)
+  sigma_hat <- stats::sd(yhat)
+  r <- stats::cor(yhat, y)
   alpha <- sigma_hat / sigma
   beta <- mu_hat / mu
   EDsq <- (r - 1) * (r - 1) + (alpha - 1) * (alpha - 1) + (beta - 1) * (beta - 1)
