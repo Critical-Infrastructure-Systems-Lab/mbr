@@ -12,7 +12,7 @@ cv_mb(
   lambda = 1,
   log.trans = NULL,
   force.standardize = FALSE,
-  return.type = c("mb", "metrics", "Q")
+  return.type = c("fval", "metrics", "metric means", "Q")
 )
 }
 \arguments{
@@ -30,7 +30,16 @@ cv_mb(
 
 \item{force.standardize}{If TRUE, all observations are standardized. See Details.}
 
-\item{return.type}{If 'mb', only the objective function value is returned. If 'metrics', all metrics are returned. If 'Q', all Q predictions are returned.}
+\item{return.type}{The type of results to be returned. Several types are possible to suit multiple use cases.
+\describe{
+\item{\code{fval}}{Only the objective function value (penalized least squares) is returned; this is useful for the outer optimization for site selection.}
+\item{\code{metrics}}{all performance metrics are returned.}
+\item{\verb{metric means}}{the Tukey's biweight robust mean of each metric is returned.}
+\item{\code{Q}}{The predicted flow in each cross-validation run is returned. This is the most basic output, so that you can use it to calculate other metrics that are not provided by the package.}
+}}
+}
+\value{
+A \code{data.table} containing cross-validation results (metrics, fval, or metric means) for each target.
 }
 \description{
 Cross-validation

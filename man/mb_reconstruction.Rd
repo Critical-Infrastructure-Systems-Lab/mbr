@@ -26,6 +26,9 @@ mb_reconstruction(
 
 \item{force.standardize}{If TRUE, all observations are standardized. See Details.}
 }
+\value{
+A \code{data.table} with the following columns: season, year, Q, and lambda.
+}
 \description{
 Mass-balance-adjusted reconstruction
 }
