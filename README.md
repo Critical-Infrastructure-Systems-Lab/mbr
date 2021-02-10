@@ -50,7 +50,7 @@ cv <- cv_mb(
 cv[, (2:6) := lapply(.SD, round, digits = 2), .SDcols = 2:6][]
 ```
 
-Type \`browseVignettes('mbr') for details.
+Type `browseVignettes('mbr')` for details.
 
 **References**
 
