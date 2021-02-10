@@ -13,7 +13,6 @@ Depends:
 Imports:
     data.table,
     dplR,
-    leaps,
     MASS,
     Matrix,
     Rfast,
@@ -24,9 +23,7 @@ Roxygen:
 URL: https://github.com/ntthung/mbr
 BugReports: https://github.com/ntthung/mbr/issues
 Suggests: 
-    FWDselect,
     knitr,
     rmarkdown,
-    testthat,
-    VSURF
+    testthat
 VignetteBuilder: knitr
