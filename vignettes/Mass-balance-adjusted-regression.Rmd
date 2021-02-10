@@ -1,0 +1,98 @@
+---
+title: "Streamflow reconstruction with mass balance adjustment"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Streamflow reconstruction with mass balance adjustment}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(mbr)
+```
+
+# Introduction
+
+The package has two main functions, `mb_reconstruction()` for reconstruction, and `cv_mb()` for cross-validation. This vignette will demonstrate these functions using the two built-in data sets. First, let's look at the built-in data, taken from Nguyen et al (2021).
+
+The data frame `p1Seasonal` contains the reconstruction targets, namely the dry season, wet season, and water year streamflow for the Ping River at station P.1 (Chiang Mai, Thailand). The data span from 1922 to 2003.
+
+```{r}
+p1Seasonal
+```
+
+As paleoclimate proxies, we use the principal components (PCs) of the Southeast Asian Dendrochronology Network. A set of PCs has been derived for each target (see details in Nguyen et al, 2020). These are provided in `pc3seasons`.
+
+```{r}
+str(pc3seasons)
+```
+
+The tree ring data spans from 1750 to 2003. Let us look at the first 10 rows of each principal component matrix.
+
+```{r}
+lapply(pc3seasons, head, n = 10)
+```
+
+# Reconstruction
+
+We build a reconstruction with the full data set. 
+
+```{r}
+fit <- mb_reconstruction(
+  instQ = p1Seasonal,
+  pc.list = pc3seasons,
+  start.year = 1750,
+  lambda = 1,
+  log.trans = 1:3
+)
+```
+
+We need to provide the instrumental data (`instQ`) and the PC list (`pc.list`). Since the PC data do not have a time column, we need to provide `start.year`, 1750 in this case.
+
+For the mass balance adjustment, we need to provide a penalty weight `lambda`. The default value is 1 and it works in this case. But for other applications you may need to test a few values for `lambda` to figure out the optimal value.
+
+Finally, the argument `log.trans` provides the indices of the targets that need to be log transformed. Here we transform all three targets.
+
+Let's look at the results.
+
+```{r}
+fit
+```
+
+# Cross-validation
+
+Let us now cross-validate the model with a hold-out-25% scheme. The cross-validation folds can be created with the function `make_Z()`.
+
+```{r}
+# Create hold-out chunks
+set.seed(24)
+cvFolds <- make_Z(
+  obs = 1922:2003,
+  nRuns = 50, 
+  frac = 0.25,
+  contiguous = TRUE
+)
+# Run cross validation
+cv <- cv_mb(
+  instQ = p1Seasonal,
+  pc.list = pc3seasons,
+  cv.folds = cvFolds,
+  start.year = 1750,
+  lambda = 1,
+  log.trans = 1:3,
+  return.type = 'metric means'
+)
+# Round up to two decimal places
+cv[, (2:6) := lapply(.SD, round, digits = 2), .SDcols = 2:6][]
+```
+
+# References
+
+Nguyen, H. T. T., Galelli, S., Xu, C., & Buckley, B. (2020). Multi-Proxy, Multi-Season Streamflow Reconstruction with Mass Balance Adjustment. Earth and Space Science Open Archive, 22. https://doi.org/10.1002/essoar.10504791.1
