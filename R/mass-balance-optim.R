@@ -52,7 +52,7 @@ lsq_mb <- function(hat, obs, lambda, mus, sigmas, log.seasons, log.ann, N, sInd)
 #'
 #' This is a wrapper for `lsq_mb()`. It first calculates `hat`, then calls `lsq_mb()`.
 #' This is used in `optim()`, so it returns a scalar.
-#' @param beta Parameters
+ #' @param beta Parameters
 #' @param X Inputs, must have columns of 1 added
 #' @param Y Observed Dry, Wet, and Annual log-transformed flows
 #' @inheritParams lsq_mb
@@ -209,7 +209,14 @@ mb_reconstruction <- function(instQ, pc.list, start.year, lambda = 1,
 #' @inheritParams mb_reconstruction
 #' @param pc.list List of PC matrices
 #' @param cv.folds A list containing the cross validation folds
-#' @param return.type If 'mb', only the objective function value is returned. If 'metrics', all metrics are returned. If 'Q', all Q predictions are returned.
+#' @param return.type The type of results to be returned. Several types are possible to suit multiple use cases.
+#' \describe{
+#'   \item{`fval`}{Only the objective function value (penalized least squares) is returned; this is useful for the outer optimization for site selection.}
+#'   \item{`metrics`}{all performance metrics are returned.}
+#'   \item{`metric means`}{the Tukey's biweight robust mean of each metric is returned.}
+#'   \item{`Q`}{The predicted flow in each cross-validation run is returned. This is the most basic output, so that you can use it to calculate other metrics that are not provided by the package.}
+#' }
+#' @return A `data.table` containing cross-validation results (metrics, fval, or metric means) for each target.
 #' @examples
 #' cvFolds <- make_Z(1922:2003, nRuns = 50, frac = 0.25, contiguous = TRUE)
 #' cv <- cv_mb(p1Seasonal, pc3seasons, cvFolds, 1750, log.trans = 1:3, return.type = 'metrics')
@@ -217,7 +224,7 @@ mb_reconstruction <- function(instQ, pc.list, start.year, lambda = 1,
 cv_mb <- function(instQ, pc.list, cv.folds, start.year,
                   lambda = 1,
                   log.trans = NULL, force.standardize = FALSE,
-                  return.type = c('mb', 'metrics', 'Q')) {
+                  return.type = c('fval', 'metrics', 'metric means', 'Q')) {
 
   # Setup
   years     <- start.year:max(instQ$year)
@@ -345,7 +352,7 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
 
     fval <- lsq_mb(hat[valInd], Y[valInd], lambda, cm, csd, log.seasons, log.ann, N, sInd)
 
-    if (return.type == 'mb') {
+    if (return.type == 'fval') {
       ans <- fval
     } else {
       Qcv <- merge(
@@ -353,7 +360,7 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
         instQ, by = c('year', 'season'))
       if (return.type == 'Q') {
         ans <- Qcv
-      } else {
+      } else { # Metrics
         metrics <- Qcv[, as.data.table(t(calculate_metrics(Q, Qa, z))), by = season]
         metrics[, fval := fval, by = season]
         ans <- metrics
@@ -365,9 +372,14 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
   # Run cv ---------------------------------------------------
 
   if (return.type == 'mb') { # A vector of fval
-    unlist(lapply(cv.folds, one_cv), use.names = FALSE)
+    out <- unlist(lapply(cv.folds, one_cv), use.names = FALSE)
   } else { # A data.table of all metrics or all reps
-    rbindlist(lapply(cv.folds, one_cv), idcol = 'rep')
+    outReps <- rbindlist(lapply(cv.folds, one_cv), idcol = 'rep')
+    if (return.type == 'metric means') {
+      out <- outReps[, lapply(.SD, tbrm), .SDcols = c('R2', 'RE', 'CE', 'nRMSE', 'KGE'), by = season]
+    } else out <- outReps
   }
+  out[, season := factor(season, seasons)]
+  out[order(season)]
 }
 
