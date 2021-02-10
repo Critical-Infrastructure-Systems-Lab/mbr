@@ -19,6 +19,6 @@ Same as \code{base::scale()} but much faster.
 }
 \section{Reference}{
 
-This function was adopted from John Muschelli's code on \href{hopstat.wordpress.com/2016/02/23/a-faster-scale-function/}{StackOverflow}, but I changed the underlying functions to calculate mean and standard deviation from \code{matrixStats} to \code{Rfast}, which is much faster.
+This function was adopted from John Muschelli's code on \href{https://hopstat.wordpress.com/2016/02/23/a-faster-scale-function/}{StackOverflow}, but I changed the underlying functions to calculate mean and standard deviation from \code{matrixStats} to \code{Rfast}, which is much faster.
 }
 

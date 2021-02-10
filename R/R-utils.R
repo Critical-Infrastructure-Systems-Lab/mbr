@@ -5,7 +5,7 @@
 #' @param add_attr If TRUE, the column means and standard deviations are returned as attributes. This is consistent with [base::scale()].
 #' @return The scaled matrix.
 #' @section Reference:
-#' This function was adopted from John Muschelli's code on \href{hopstat.wordpress.com/2016/02/23/a-faster-scale-function/}{StackOverflow}, but I changed the underlying functions to calculate mean and standard deviation from `matrixStats` to `Rfast`, which is much faster.
+#' This function was adopted from John Muschelli's code on \href{https://hopstat.wordpress.com/2016/02/23/a-faster-scale-function/}{StackOverflow}, but I changed the underlying functions to calculate mean and standard deviation from `matrixStats` to `Rfast`, which is much faster.
 colScale <- function(x, add_attr = TRUE) {
 
   # Get the column means
