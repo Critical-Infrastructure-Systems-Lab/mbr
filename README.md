@@ -1,3 +1,5 @@
+![GitHub R package version](https://img.shields.io/github/r-package/v/ntthung/mbr)
+
 # Mass Balance Regression
 
 This package implements the Mass-balance-adjusted regression algorithm for sub-annual streamflow reconstruction. The algorithm implements a penalty term to minimize the differences between the total seasonal flow reconstruction and the annual flow reconstruction. Details are presented in Nguyen et al (2020).
