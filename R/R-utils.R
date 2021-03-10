@@ -127,7 +127,7 @@ make_Z <- function(obs, nRuns = 30, frac = 0.1, contiguous = TRUE) {
 #'
 #' @param yhat Model outputs
 #' @param y Observations
-#' @return NSE
+#' @return NSE value
 #' @examples
 #' NSE(rnorm(100), rnorm(100))
 #' @export
@@ -144,7 +144,7 @@ NSE <- function(yhat, y) {
 #' @param yhat Model outputs
 #' @param y Observations
 #' @param normConst The normalization constant
-#' @return normalized RMSE
+#' @return normalized RMSE value
 #' @examples
 #' x <- rnorm(100)
 #' y <- rnorm(100)
@@ -159,7 +159,7 @@ nRMSE <- function(yhat, y, normConst) {
 #'
 #' @param yhat Model outputs
 #' @param y Observations
-#' @return KGE
+#' @return KGE value
 #' @examples
 #' KGE(rnorm(100), rnorm(100))
 #' @export
@@ -180,7 +180,7 @@ KGE <- function(yhat, y) {
 #' @param yhat Model outputs in the validation set
 #' @param y Observations in the validation set
 #' @param yc_bar Mean observations in the calibration set
-#' @return RE
+#' @return RE value
 #' @examples
 #' x <- rnorm(100)
 #' y <- rnorm(100)
