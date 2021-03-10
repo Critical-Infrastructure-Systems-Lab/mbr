@@ -14,7 +14,7 @@ nRMSE(yhat, y, normConst)
 \item{normConst}{The normalization constant}
 }
 \value{
-normalized RMSE
+normalized RMSE value
 }
 \description{
 RMSE is normalized by the normalization constant

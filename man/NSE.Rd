@@ -12,7 +12,7 @@ NSE(yhat, y)
 \item{y}{Observations}
 }
 \value{
-NSE
+NSE value
 }
 \description{
 Nash-Sutcliffe Efficiency

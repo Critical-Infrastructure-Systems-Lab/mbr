@@ -21,6 +21,9 @@ back_trans(hat, years, mus, sigmas, log.trans, N, season.names)
 
 \item{season.names}{A character vector containing the names of the seasons}
 }
+\value{
+A \code{data.table} with three columns: Q (the back-transformed streamflow), season, and year.
+}
 \description{
 Transform the reconstructed values back to the flow space
 and convert to data.table

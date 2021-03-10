@@ -6,7 +6,7 @@
 \alias{mbr-package}
 \title{mbr: Mass Balance Reconstruction}
 \description{
-Mass-balance-adjusted Regression algorithm for streamflow reconstruction at sub-annual resolution (e.g., seasonal or monthly). The algorithm implements a penalty term to minimize the differences between the total sub-annual flows and the annual flow. The method is described in Nguyen et al (2020) <DOI: 10.1002/essoar.10504791.1>.
+Mass-balance-adjusted Regression algorithm for streamflow reconstruction at sub-annual resolution (e.g., seasonal or monthly). The algorithm implements a penalty term to minimize the differences between the total sub-annual flows and the annual flow. The method is described in Nguyen et al (2020) <DOI:10.1002/essoar.10504791.1>.
 }
 \seealso{
 Useful links:

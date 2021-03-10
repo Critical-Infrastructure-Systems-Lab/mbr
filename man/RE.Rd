@@ -14,7 +14,7 @@ RE(yhat, y, yc_bar)
 \item{yc_bar}{Mean observations in the calibration set}
 }
 \value{
-RE
+RE value
 }
 \description{
 Reduction of Error

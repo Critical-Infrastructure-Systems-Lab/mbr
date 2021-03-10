@@ -12,7 +12,7 @@ KGE(yhat, y)
 \item{y}{Observations}
 }
 \value{
-KGE
+KGE value
 }
 \description{
 Kling-Gupta Efficiency
