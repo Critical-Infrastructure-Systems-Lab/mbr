@@ -97,6 +97,7 @@ prepend_ones <- function(x) cbind('Int' = rep(1, dim(x)[1]), x)
 #' @param log.trans A vector containing the indices of the columns to be log-transformed.
 #' @inheritParams lsq_mb
 #' @param season.names A character vector containing the names of the seasons
+#' @return A `data.table` with three columns: Q (the back-transformed streamflow), season, and year.
 back_trans <- function(hat, years, mus, sigmas, log.trans, N, season.names) {
 
   # Here we use the column form because it's easier to do c() and we don't have to worry about speed
@@ -371,15 +372,16 @@ cv_mb <- function(instQ, pc.list, cv.folds, start.year,
 
   # Run cv ---------------------------------------------------
 
-  if (return.type == 'mb') { # A vector of fval
+  if (return.type == 'fval') { # A vector of fval
     out <- unlist(lapply(cv.folds, one_cv), use.names = FALSE)
   } else { # A data.table of all metrics or all reps
     outReps <- rbindlist(lapply(cv.folds, one_cv), idcol = 'rep')
     if (return.type == 'metric means') {
       out <- outReps[, lapply(.SD, tbrm), .SDcols = c('R2', 'RE', 'CE', 'nRMSE', 'KGE'), by = season]
     } else out <- outReps
+    out[, season := factor(season, seasons)]
+    out <- out[order(season)]
   }
-  out[, season := factor(season, seasons)]
-  out[order(season)]
+  out
 }
 
